@@ -3,55 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Sholat</title>
+    <title>Cari Jadwal Sholat</title>
     <style>
-        :root { --primary: #2c3e50; --bg: #f8f9fa; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 350px; }
-        .header { text-align: center; margin-bottom: 2rem; }
-        .header h1 { margin: 0; font-size: 1.4rem; color: var(--primary); }
-        .header p { margin: 5px 0 0; color: #888; font-size: 0.9rem; }
-        .time-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f1f1; }
-        .time-item:last-child { border-bottom: none; }
-        .label { font-weight: 500; color: #555; text-transform: capitalize; }
-        .value { font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
-        .footer { margin-top: 1.5rem; text-align: center; font-size: 0.7rem; color: #bbb; }
+        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding-top: 50px; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 380px; }
+
+        .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        button { padding: 10px 15px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        .header { text-align: center; margin-bottom: 1.5rem; }
+        .header h1 { margin: 0; font-size: 1.2rem; color: var(--primary); }
+
+        .time-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .label { font-weight: 500; color: #666; }
+        .value { font-weight: 700; color: var(--primary); }
+        .loading { text-align: center; color: #888; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="header">
-        <h1 id="city">Memuat Lokasi...</h1>
-        <p id="date">-- --- ----</p>
+    <div class="search-box">
+        <input type="text" id="cityInput" placeholder="Contoh: Jakarta, Bandung..." onkeypress="if(event.key==='Enter') searchCity()">
+        <button onclick="searchCity()">Cari</button>
     </div>
-    <div id="times"></div>
-    <div class="footer">Data: Kemenag RI via MyQuran API</div>
+
+    <div id="content">
+        <div class="header">
+            <h1 id="cityName">Pilih Kota</h1>
+            <p id="dateDisplay">-- --- ----</p>
+        </div>
+        <div id="times"></div>
+    </div>
 </div>
 
 <script>
-    async function init() {
+    async function searchCity() {
+        const query = document.getElementById('cityInput').value;
+        if (!query) return;
+
+        const content = document.getElementById('content');
+        const cityHeader = document.getElementById('cityName');
+        cityHeader.innerText = "Mencari...";
+
         try {
-            const res = await fetch('/api/jadwal');
+            // 1. Fetch City ID
+            const searchRes = await fetch(`https://api.myquran.com/v2/sholat/kota/cari/${query}`);
+            const searchData = await searchRes.json();
+
+            if (!searchData.status || searchData.data.length === 0) {
+                cityHeader.innerText = "Kota tidak ditemukan";
+                return;
+            }
+
+            const cityId = searchData.data[0].id;
+
+            // 2. Fetch Schedule
+            const res = await fetch(`/.netlify/functions/jadwal?city=${cityId}`);
             const data = await res.json();
 
-            document.getElementById('city').innerText = data.lokasi;
-            document.getElementById('date').innerText = data.jadwal.tanggal;
+            // 3. Render
+            cityHeader.innerText = data.lokasi;
+            document.getElementById('dateDisplay').innerText = data.jadwal.tanggal;
 
-            const displayKeys = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
-            const container = document.getElementById('times');
-
-            container.innerHTML = displayKeys.map(key => `
+            const keys = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+            document.getElementById('times').innerHTML = keys.map(k => `
                 <div class="time-item">
-                    <span class="label">${key}</span>
-                    <span class="value">${data.jadwal[key]}</span>
+                    <span class="label">${k.toUpperCase()}</span>
+                    <span class="value">${data.jadwal[k]}</span>
                 </div>
             `).join('');
+
         } catch (e) {
-            document.getElementById('city').innerText = "Koneksi Gagal";
+            cityHeader.innerText = "Terjadi kesalahan";
         }
     }
-    init();
+
+    // Default load (Jakarta)
+    window.onload = () => {
+        document.getElementById('cityInput').value = "Jakarta";
+        searchCity();
+    };
 </script>
 </body>
 </html>

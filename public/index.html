@@ -3,89 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cari Jadwal Sholat</title>
+    <title>Jadwal Sholat Indonesia</title>
     <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; }
-        body { font-family: system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding-top: 50px; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 380px; }
+        :root { --primary: #2c3e50; --accent: #27ae60; --error: #e74c3c; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 40px 20px; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
 
-        .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
-        button { padding: 10px 15px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .search-container { display: flex; gap: 10px; margin-bottom: 25px; }
+        input { flex: 1; padding: 12px; border: 2px solid #eee; border-radius: 10px; outline: none; transition: border-color 0.3s; }
+        input:focus { border-color: var(--accent); }
+        button { padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.9; }
 
-        .header { text-align: center; margin-bottom: 1.5rem; }
-        .header h1 { margin: 0; font-size: 1.2rem; color: var(--primary); }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #f9f9f9; padding-bottom: 15px; }
+        .header h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+        .header p { margin: 5px 0 0; color: #7f8c8d; font-size: 0.9rem; }
 
-        .time-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
-        .label { font-weight: 500; color: #666; }
-        .value { font-weight: 700; color: var(--primary); }
-        .loading { text-align: center; color: #888; font-style: italic; }
+        .time-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f1f1f1; }
+        .time-row:last-child { border-bottom: none; }
+        .label { font-weight: 600; color: #555; text-transform: uppercase; font-size: 0.85rem; }
+        .time { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
+
+        .status-msg { text-align: center; padding: 10px; border-radius: 8px; font-size: 0.9rem; display: none; margin-bottom: 15px; }
+        .error { display: block; background: #fdeaea; color: var(--error); border: 1px solid #fadbd8; }
+        .loading { display: block; background: #eafaf1; color: var(--accent); }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="search-box">
-        <input type="text" id="cityInput" placeholder="Contoh: Jakarta, Bandung..." onkeypress="if(event.key==='Enter') searchCity()">
-        <button onclick="searchCity()">Cari</button>
+    <div class="search-container">
+        <input type="text" id="cityInput" placeholder="Masukkan nama kota..." value="Jakarta">
+        <button onclick="searchAndFetch()">CARI</button>
     </div>
 
-    <div id="content">
+    <div id="status" class="status-msg"></div>
+
+    <div id="mainContent" style="display:none;">
         <div class="header">
-            <h1 id="cityName">Pilih Kota</h1>
-            <p id="dateDisplay">-- --- ----</p>
+            <h1 id="cityName">---</h1>
+            <p id="dateDisplay">---</p>
         </div>
-        <div id="times"></div>
+        <div id="prayerTimes">
+            </div>
     </div>
 </div>
 
 <script>
-    async function searchCity() {
-        const query = document.getElementById('cityInput').value;
+    const statusEl = document.getElementById('status');
+    const contentEl = document.getElementById('mainContent');
+
+    function showStatus(msg, type) {
+        statusEl.innerText = msg;
+        statusEl.className = `status-msg ${type}`;
+        statusEl.style.display = 'block';
+    }
+
+    async function searchAndFetch() {
+        const query = document.getElementById('cityInput').value.trim();
         if (!query) return;
 
-        const content = document.getElementById('content');
-        const cityHeader = document.getElementById('cityName');
-        cityHeader.innerText = "Mencari...";
+        showStatus("Mencari kota...", "loading");
+        contentEl.style.display = 'none';
 
         try {
-            // 1. Fetch City ID
-            const searchRes = await fetch(`https://api.myquran.com/v2/sholat/kota/cari/${query}`);
+            // 1. Find City ID from the public API
+            const searchUrl = `https://api.myquran.com/v2/sholat/kota/cari/${encodeURIComponent(query)}`;
+            const searchRes = await fetch(searchUrl);
             const searchData = await searchRes.json();
 
-            if (!searchData.status || searchData.data.length === 0) {
-                cityHeader.innerText = "Kota tidak ditemukan";
+            if (!searchData.status || !searchData.data || searchData.data.length === 0) {
+                showStatus("Kota tidak ditemukan. Coba nama lain.", "error");
                 return;
             }
 
             const cityId = searchData.data[0].id;
 
-            // 2. Fetch Schedule
-            const res = await fetch(`/.netlify/functions/jadwal?city=${cityId}`);
-            const data = await res.json();
+            // 2. Fetch Schedule using YOUR Netlify Function (index.js)
+            // We try the redirect path first, then fallback to direct path
+            let data;
+            try {
+                const res = await fetch(`/api/jadwal?city=${cityId}`);
+                if (!res.ok) throw new Error();
+                data = await res.json();
+            } catch (err) {
+                // FALLBACK: Directly calling the function name index.js
+                const fallback = await fetch(`/.netlify/functions/index?city=${cityId}`);
+                if (!fallback.ok) throw new Error("Gagal memuat jadwal dari server.");
+                data = await fallback.json();
+            }
 
-            // 3. Render
-            cityHeader.innerText = data.lokasi;
+            // 3. Populate UI
+            document.getElementById('cityName').innerText = data.lokasi;
             document.getElementById('dateDisplay').innerText = data.jadwal.tanggal;
 
-            const keys = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
-            document.getElementById('times').innerHTML = keys.map(k => `
-                <div class="time-item">
-                    <span class="label">${k.toUpperCase()}</span>
-                    <span class="value">${data.jadwal[k]}</span>
+            const prayerList = ['imsak', 'subuh', 'terbit', 'dhuha', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+            const container = document.getElementById('prayerTimes');
+
+            container.innerHTML = prayerList.map(p => `
+                <div class="time-row">
+                    <span class="label">${p}</span>
+                    <span class="time">${data.jadwal[p]}</span>
                 </div>
             `).join('');
 
+            statusEl.style.display = 'none';
+            contentEl.style.display = 'block';
+
         } catch (e) {
-            cityHeader.innerText = "Terjadi kesalahan";
+            console.error(e);
+            showStatus(`Error: ${e.message || "Gagal mengambil data"}`, "error");
         }
     }
 
-    // Default load (Jakarta)
-    window.onload = () => {
-        document.getElementById('cityInput').value = "Jakarta";
-        searchCity();
-    };
+    // Auto-load Jakarta on start
+    window.onload = searchAndFetch;
 </script>
+
 </body>
 </html>

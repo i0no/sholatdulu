@@ -14,9 +14,9 @@ Aplikasi web responsif untuk memantau jadwal sholat di seluruh kota di Indonesia
 
 ### Persiapan File
 Pastikan struktur direktori Anda sesuai dengan standar Netlify:
-- `/public/index.html` - Antarmuka pengguna.
-- `/functions/index.js` - Logika pemanggilan API (Backend).
-- `netlify.toml` - Konfigurasi deploy.
+- `/public/index.html`
+- `/functions/index.js` 
+- `netlify.toml`
 
 ### Konfigurasi Netlify
 Untuk performa optimal, atur versi Node.js di environment variabel Netlify:

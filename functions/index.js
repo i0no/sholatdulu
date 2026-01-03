@@ -7,6 +7,7 @@ exports.handler = async (event) => {
   const month = now.getMonth() + 1;
   const day = String(now.getDate()).padStart(2, '0');
 
+  // Official Bimas Islam Token
   const KEMENAG_TOKEN = "af7c667b9819378c0bddb3baede9525b";
 
   try {
@@ -21,44 +22,46 @@ exports.handler = async (event) => {
       method: 'POST',
       body: params,
       headers: {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Origin': 'https://bimasislam.kemenag.go.id',
+        'Referer': 'https://bimasislam.kemenag.go.id/jadwalshalat',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                 'X-Requested-With': 'XMLHttpRequest', // Kemenag looks for this header
-                                 'Origin': 'https://bimasislam.kemenag.go.id',
-                                 'Referer': 'https://bimasislam.kemenag.go.id/jadwalshalat'
+                                 'X-Requested-With': 'XMLHttpRequest'
       }
     });
 
-    const rawText = await response.text();
+    const text = await response.text();
 
-    // Debugging: If Kemenag sends HTML (error page) instead of JSON
-    if (rawText.includes("<html>")) {
+    // If Kemenag still sends a block page, we catch it here
+    if (text.trim().startsWith("<!DOCTYPE html>") || text.trim().startsWith("<html")) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ error: "Blocked by Kemenag Firewall", raw: rawText.substring(0, 100) })
+        body: JSON.stringify({
+          error: "Kemenag Firewall Blocked Netlify",
+          solution: "Kemenag blocks foreign cloud IPs. Try refreshing or check back in a few minutes."
+        })
       };
     }
 
-    const result = JSON.parse(rawText);
+    const result = JSON.parse(text);
     const todayKey = `${year}-${String(month).padStart(2, '0')}-${day}`;
-    const todayData = result.data ? result.data[todayKey] : null;
-
-    if (!todayData) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: "Data not found", availableKeys: Object.keys(result.data || {}) })
-      };
-    }
+    const todayData = result.data[todayKey];
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tanggal: todayKey, jadwal: todayData })
+      body: JSON.stringify({
+        source: "Official Bimas Islam",
+        tanggal: todayKey,
+        jadwal: todayData
+      })
     };
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Server Crash", message: error.message })
+      body: JSON.stringify({ error: "Fetch Failed", message: error.message })
     };
   }
 };

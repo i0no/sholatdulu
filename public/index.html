@@ -3,113 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Sholat Resmi Kemenag</title>
+    <title>Jadwal Sholat - Bimas Islam RI</title>
     <style>
-        :root { --primary: #1a5d1a; --bg: #f0f2f0; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-
-        .search-container { position: relative; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; outline: none; box-sizing: border-box; }
-        input:focus { border-color: var(--primary); }
-
-        #suggestions {
-            position: absolute; top: 100%; left: 0; right: 0;
-            background: white; border: 1px solid #ddd; border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 100; display: none;
-            max-height: 250px; overflow-y: auto;
-        }
-        .item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.95rem; }
-        .item:hover { background: #f0fdf0; }
-
-        .header { text-align: center; margin-bottom: 20px; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .time-row { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #f9f9f9; }
-        .label { font-weight: 600; color: #444; text-transform: uppercase; }
-        .time { font-weight: 800; color: #000; font-size: 1.1rem; }
-
-        .badge { display: block; text-align: center; font-size: 0.7rem; color: #999; margin-top: 15px; }
-        .error-msg { color: red; text-align: center; font-size: 0.8rem; margin-top: 10px; display: none; }
+        :root { --green: #1a5d1a; --light: #f4f4f4; }
+        body { font-family: sans-serif; background: var(--light); padding: 20px; display: flex; justify-content: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 360px; }
+        .search-area { position: relative; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        #suggestions { position: absolute; background: white; width: 100%; border: 1px solid #ddd; z-index: 10; display: none; max-height: 200px; overflow-y: auto; }
+        .city-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .city-item:hover { background: #f0f0f0; }
+        .time-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #555; text-transform: uppercase; }
+        .time { font-weight: 900; color: var(--green); }
+        .footer { font-size: 0.7rem; color: #999; text-align: center; margin-top: 20px; }
+        .error { color: red; text-align: center; margin-top: 10px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="header">
-        <h2 id="displayCity">DKI JAKARTA</h2>
-        <small id="displayDate">--/--/----</small>
-    </div>
+    <h3 id="cityLabel" style="text-align:center; color: var(--green);">DKI JAKARTA</h3>
 
-    <div class="search-container">
-        <input type="text" id="cityInput" placeholder="Ketik nama kota (min. 3 huruf)..." autocomplete="off">
+    <div class="search-area">
+        <input type="text" id="cityInput" placeholder="Ketik nama kota..." autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
-    <div id="error" class="error-msg"></div>
+    <div id="errorBox" class="error"></div>
+    <div id="times"></div>
 
-    <div id="times">
-        </div>
-
-    <span class="badge">Sumber: bimasislam.kemenag.go.id (Data Langsung)</span>
+    <div class="footer">Data: Official Bimas Islam Kemenag RI</div>
 </div>
 
 <script>
-    // Official Kemenag City IDs (Partial List - You can expand this)
-    const KEMENAG_CITIES = [
+    // These are official Kemenag Codes (ProvID + CityID)
+    const CITIES = [
         { id: "1301", name: "DKI JAKARTA" },
         { id: "1210", name: "KOTA BANDUNG" },
         { id: "1524", name: "KOTA SURABAYA" },
         { id: "1409", name: "KOTA SEMARANG" },
         { id: "1107", name: "KOTA MEDAN" },
         { id: "3171", name: "KOTA MAKASSAR" },
-        { id: "2408", name: "KOTA BANJARMASIN" },
         { id: "1609", name: "KOTA YOGYAKARTA" },
-        { id: "1212", name: "KOTA BEKASI" },
         { id: "1211", name: "KOTA DEPOK" },
         { id: "1202", name: "KOTA BOGOR" },
-        { id: "1302", name: "KAB. KEPULAUAN SERIBU" },
-        { id: "1708", name: "KOTA MALANG" },
-        { id: "1801", name: "KOTA DENPASAR" }
+        { id: "1708", name: "KOTA MALANG" }
     ];
 
     const input = document.getElementById('cityInput');
     const suggest = document.getElementById('suggestions');
 
-    // Filter our OWN city list
     input.addEventListener('input', () => {
-        const q = input.value.toUpperCase().trim();
-        if (q.length < 3) { suggest.style.display = 'none'; return; }
-
-        const matches = KEMENAG_CITIES.filter(c => c.name.includes(q));
-
-        if (matches.length > 0) {
-            suggest.innerHTML = matches.map(c =>
-                `<div class="item" onclick="select('${c.id}','${c.name}')">${c.name}</div>`
-            ).join('');
-            suggest.style.display = 'block';
-        } else {
-            suggest.style.display = 'none';
-        }
+        const val = input.value.toUpperCase();
+        if (val.length < 2) { suggest.style.display = 'none'; return; }
+        const matches = CITIES.filter(c => c.name.includes(val));
+        suggest.innerHTML = matches.map(c => `<div class="city-item" onclick="getTimes('${c.id}','${c.name}')">${c.name}</div>`).join('');
+        suggest.style.display = matches.length ? 'block' : 'none';
     });
 
-    function select(id, name) {
+    async function getTimes(id, name) {
         input.value = name;
         suggest.style.display = 'none';
-        fetchKemenag(id, name);
-    }
-
-    async function fetchKemenag(id, name) {
-        const errorEl = document.getElementById('error');
-        errorEl.style.display = 'none';
+        document.getElementById('errorBox').innerText = "";
 
         try {
             const res = await fetch(`/.netlify/functions/index?city=${id}`);
             const data = await res.json();
 
-            if (!data.jadwal) throw new Error();
+            if (data.error) {
+                document.getElementById('errorBox').innerText = data.error;
+                return;
+            }
 
-            document.getElementById('displayCity').innerText = name;
-            document.getElementById('displayDate').innerText = data.tanggal;
-
+            document.getElementById('cityLabel').innerText = name;
             const prayers = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
             document.getElementById('times').innerHTML = prayers.map(p => `
                 <div class="time-row">
@@ -117,15 +84,12 @@
                     <span class="time">${data.jadwal[p]}</span>
                 </div>
             `).join('');
-
         } catch (e) {
-            errorEl.innerText = "Gagal mengambil data resmi Kemenag.";
-            errorEl.style.display = 'block';
+            document.getElementById('errorBox').innerText = "Koneksi ke Kemenag Terputus.";
         }
     }
 
-    // Default load Jakarta
-    window.onload = () => fetchKemenag("1301", "DKI JAKARTA");
+    window.onload = () => getTimes("1301", "DKI JAKARTA");
 </script>
 </body>
 </html>

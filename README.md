@@ -22,6 +22,7 @@ Pastikan struktur direktori Anda sesuai dengan standar Netlify:
 Untuk performa optimal, atur versi Node.js di environment variabel Netlify:
 ```env
 NODE_VERSION = 22
+```
 
 ### 🛠️ Instalasi & Persiapan
 Jika Anda ingin menjalankan proyek ini secara lokal:
@@ -31,6 +32,8 @@ Clone repositori ini:
 ```Bash
 git clone https://github.com/username-anda/nama-repo.git
 cd nama-repo
+```
+
 Struktur Folder: Pastikan struktur folder Anda seperti ini:
 
 ```Plaintext
@@ -40,7 +43,7 @@ Struktur Folder: Pastikan struktur folder Anda seperti ini:
 │   └── index.html     # Tampilan Utama (Frontend)
 ├── netlify.toml       # Konfigurasi Redirect & Functions
 └── package.json
-
+```
 
 ### Deploy ke Netlify:
 

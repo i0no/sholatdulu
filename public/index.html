@@ -3,145 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Sholat Autocomplete</title>
+    <title>Jadwal Sholat Resmi Kemenag</title>
     <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 40px 20px; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        :root { --primary: #1a5d1a; --bg: #f0f2f0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
 
-        .search-container { position: relative; margin-bottom: 25px; }
-        .input-group { display: flex; gap: 10px; }
-        input { flex: 1; padding: 12px; border: 2px solid #eee; border-radius: 10px; outline: none; }
-        input:focus { border-color: var(--accent); }
-        button { padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .search-container { position: relative; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; outline: none; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); }
 
-        /* Suggestions Dropdown */
         #suggestions {
-            position: absolute; top: 100%; left: 0; right: 85px;
-            background: white; border: 1px solid #eee; border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; display: none;
-            max-height: 200px; overflow-y: auto;
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #ddd; border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 100; display: none;
+            max-height: 250px; overflow-y: auto;
         }
-        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f9f9f9; font-size: 0.9rem; }
-        .suggestion-item:hover { background: #f0fdf4; color: var(--accent); }
+        .item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .item:hover { background: #f0fdf0; }
 
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #f9f9f9; padding-bottom: 15px; }
-        .header h1 { margin: 0; font-size: 1.3rem; color: var(--primary); }
-        .time-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f1f1; }
-        .label { font-weight: 600; color: #666; text-transform: uppercase; font-size: 0.8rem; }
-        .time { font-weight: 800; color: var(--primary); }
-        .status-msg { text-align: center; padding: 8px; font-size: 0.85rem; margin-bottom: 10px; display: none; border-radius: 5px; }
-        .error { background: #fdeaea; color: #e74c3c; display: block; }
+        .header { text-align: center; margin-bottom: 20px; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .time-row { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #f9f9f9; }
+        .label { font-weight: 600; color: #444; text-transform: uppercase; }
+        .time { font-weight: 800; color: #000; font-size: 1.1rem; }
+
+        .badge { display: block; text-align: center; font-size: 0.7rem; color: #999; margin-top: 15px; }
+        .error-msg { color: red; text-align: center; font-size: 0.8rem; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="card">
+    <div class="header">
+        <h2 id="displayCity">DKI JAKARTA</h2>
+        <small id="displayDate">--/--/----</small>
+    </div>
+
     <div class="search-container">
-        <div class="input-group">
-            <input type="text" id="cityInput" placeholder="Ketik nama kota..." autocomplete="off">
-            <button onclick="fetchJadwal(selectedCityId)">CARI</button>
-        </div>
+        <input type="text" id="cityInput" placeholder="Ketik nama kota (min. 3 huruf)..." autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
-    <div id="status" class="status-msg"></div>
+    <div id="error" class="error-msg"></div>
 
-    <div id="mainContent" style="display:none;">
-        <div class="header">
-            <h1 id="cityName">---</h1>
-            <p id="dateDisplay" style="color:#888; font-size:0.9rem;">---</p>
+    <div id="times">
         </div>
-        <div id="prayerTimes"></div>
-    </div>
+
+    <span class="badge">Sumber: bimasislam.kemenag.go.id (Data Langsung)</span>
 </div>
 
 <script>
-    let selectedCityId = "1301"; // Default Jakarta
-    let debounceTimer;
+    // Official Kemenag City IDs (Partial List - You can expand this)
+    const KEMENAG_CITIES = [
+        { id: "1301", name: "DKI JAKARTA" },
+        { id: "1210", name: "KOTA BANDUNG" },
+        { id: "1524", name: "KOTA SURABAYA" },
+        { id: "1409", name: "KOTA SEMARANG" },
+        { id: "1107", name: "KOTA MEDAN" },
+        { id: "3171", name: "KOTA MAKASSAR" },
+        { id: "2408", name: "KOTA BANJARMASIN" },
+        { id: "1609", name: "KOTA YOGYAKARTA" },
+        { id: "1212", name: "KOTA BEKASI" },
+        { id: "1211", name: "KOTA DEPOK" },
+        { id: "1202", name: "KOTA BOGOR" },
+        { id: "1302", name: "KAB. KEPULAUAN SERIBU" },
+        { id: "1708", name: "KOTA MALANG" },
+        { id: "1801", name: "KOTA DENPASAR" }
+    ];
 
-    const cityInput = document.getElementById('cityInput');
-    const suggestionsBox = document.getElementById('suggestions');
+    const input = document.getElementById('cityInput');
+    const suggest = document.getElementById('suggestions');
 
-    // 1. Listen for typing to show suggestions
-    cityInput.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        const query = cityInput.value.trim();
+    // Filter our OWN city list
+    input.addEventListener('input', () => {
+        const q = input.value.toUpperCase().trim();
+        if (q.length < 3) { suggest.style.display = 'none'; return; }
 
-        if (query.length < 2) {
-            suggestionsBox.style.display = 'none';
-            return;
+        const matches = KEMENAG_CITIES.filter(c => c.name.includes(q));
+
+        if (matches.length > 0) {
+            suggest.innerHTML = matches.map(c =>
+                `<div class="item" onclick="select('${c.id}','${c.name}')">${c.name}</div>`
+            ).join('');
+            suggest.style.display = 'block';
+        } else {
+            suggest.style.display = 'none';
         }
-
-        debounceTimer = setTimeout(async () => {
-            try {
-                const res = await fetch(`https://api.myquran.com/v2/sholat/kota/cari/${query}`);
-                const json = await res.json();
-
-                if (json.status && json.data.length > 0) {
-                    renderSuggestions(json.data);
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            } catch (e) { console.error("Search error"); }
-        }, 300); // Wait 300ms after user stops typing
     });
 
-    function renderSuggestions(cities) {
-        suggestionsBox.innerHTML = cities.map(city => `
-            <div class="suggestion-item" onclick="selectCity('${city.id}', '${city.lokasi}')">
-                ${city.lokasi}
-            </div>
-        `).join('');
-        suggestionsBox.style.display = 'block';
+    function select(id, name) {
+        input.value = name;
+        suggest.style.display = 'none';
+        fetchKemenag(id, name);
     }
 
-    function selectCity(id, name) {
-        cityInput.value = name;
-        selectedCityId = id;
-        suggestionsBox.style.display = 'none';
-        fetchJadwal(id);
-    }
+    async function fetchKemenag(id, name) {
+        const errorEl = document.getElementById('error');
+        errorEl.style.display = 'none';
 
-    // 2. Fetch the actual schedule from your Netlify Function
-    async function fetchJadwal(id) {
-        const content = document.getElementById('mainContent');
-        const status = document.getElementById('status');
-
-        status.style.display = 'none';
         try {
-            // Using the path to your index.js function
             const res = await fetch(`/.netlify/functions/index?city=${id}`);
-            if (!res.ok) throw new Error("Gagal mengambil data dari server.");
-
             const data = await res.json();
 
-            document.getElementById('cityName').innerText = data.lokasi;
-            document.getElementById('dateDisplay').innerText = data.jadwal.tanggal;
+            if (!data.jadwal) throw new Error();
 
-            const list = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
-            document.getElementById('prayerTimes').innerHTML = list.map(p => `
+            document.getElementById('displayCity').innerText = name;
+            document.getElementById('displayDate').innerText = data.tanggal;
+
+            const prayers = ['imsak', 'subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
+            document.getElementById('times').innerHTML = prayers.map(p => `
                 <div class="time-row">
                     <span class="label">${p}</span>
                     <span class="time">${data.jadwal[p]}</span>
                 </div>
             `).join('');
 
-            content.style.display = 'block';
         } catch (e) {
-            status.innerText = e.message;
-            status.className = "status-msg error";
+            errorEl.innerText = "Gagal mengambil data resmi Kemenag.";
+            errorEl.style.display = 'block';
         }
     }
 
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-container')) suggestionsBox.style.display = 'none';
-    });
-
-    // Load initial data
-    window.onload = () => fetchJadwal(selectedCityId);
+    // Default load Jakarta
+    window.onload = () => fetchKemenag("1301", "DKI JAKARTA");
 </script>
-
 </body>
 </html>

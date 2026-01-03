@@ -3,130 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jadwal Sholat & Next Prayer</title>
+    <title>Jadwal Sholat Live</title>
     <style>
-        :root { --primary: #2e7d32; --accent: #ff9800; --bg: #f0f2f0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        :root { --primary: #1b5e20; --accent: #ffd600; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }
 
-        .header { text-align: center; margin-bottom: 20px; }
-        .city-name { margin: 0; color: var(--primary); font-size: 1.5rem; }
-        .timezone { font-size: 0.8rem; color: #888; font-weight: bold; }
+        /* Live Clock Styling */
+        .clock-banner { text-align: center; background: var(--primary); color: white; padding: 20px; border-radius: 18px; margin-bottom: 20px; }
+        #liveClock { font-size: 2.8rem; font-weight: 800; line-height: 1; }
+        #liveDate { font-size: 0.9rem; opacity: 0.8; margin-bottom: 8px; }
+        .countdown { font-size: 0.85rem; background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 20px; display: inline-block; margin-top: 10px; }
 
-        .next-prayer-card { background: var(--primary); color: white; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
-        .next-label { font-size: 0.8rem; opacity: 0.9; text-transform: uppercase; }
-        .next-time { font-size: 2rem; font-weight: 800; margin: 5px 0; }
+        /* Search Layout */
+        .search-container { position: relative; margin-bottom: 20px; }
+        .input-group { display: flex; gap: 8px; }
+        input { flex: 1; padding: 12px 15px; border: 2px solid #eee; border-radius: 12px; outline: none; font-size: 1rem; }
+        input:focus { border-color: var(--primary); }
 
-        .search-box { position: relative; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; outline: none; box-sizing: border-box; }
-        #suggestions { position: absolute; background: white; width: 100%; border: 1px solid #ddd; z-index: 100; display: none; max-height: 150px; overflow-y: auto; border-radius: 8px; }
-        .item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        #suggestions {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 1px solid #eee; border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1); z-index: 99; display: none;
+            max-height: 200px; overflow-y: auto;
+        }
+        .suggestion-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f9f9f9; }
+        .suggestion-item:hover { background: #f1f8e9; }
 
-        .time-row { display: flex; justify-content: space-between; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; background: #f9f9f9; border: 1px solid transparent; }
-        .active-row { border-color: var(--accent); background: #fffde7; }
-        .label { font-weight: 600; color: #555; }
-        .time { font-weight: 800; }
+        .city-info { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 15px; border-bottom: 2px solid #f4f4f4; padding-bottom: 10px; }
+        .city-info h2 { margin: 0; color: var(--primary); font-size: 1.2rem; }
+        .tz-badge { font-size: 0.7rem; font-weight: 800; background: #eee; padding: 3px 8px; border-radius: 5px; color: #666; }
+
+        /* Prayer Row Styling */
+        .time-row { display: flex; justify-content: space-between; padding: 14px 18px; margin-bottom: 8px; border-radius: 12px; background: #fafafa; transition: transform 0.2s; }
+        .active-prayer { background: #fffde7; border: 1px solid var(--accent); transform: scale(1.02); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .label { font-weight: 600; color: #666; text-transform: uppercase; font-size: 0.8rem; }
+        .time { font-weight: 800; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="header">
-        <h2 id="cityName" class="city-name">---</h2>
-        <span id="tzLabel" class="timezone">WIB</span>
+    <div class="clock-banner">
+        <div id="liveDate">-- --- ----</div>
+        <div id="liveClock">00:00:00</div>
+        <div id="countdown" class="countdown">Menghitung...</div>
     </div>
 
-    <div id="nextPrayerBox" class="next-prayer-card" style="display:none;">
-        <div class="next-label">Selanjutnya: <span id="nextName">--</span></div>
-        <div id="nextTime" class="next-time">--:--</div>
-    </div>
-
-    <div class="search-box">
-        <input type="text" id="cityInput" placeholder="Cari Kota..." autocomplete="off">
+    <div class="search-container">
+        <div class="input-group">
+            <input type="text" id="cityInput" placeholder="Cari kota (cth: Jakarta, Jayapura...)" autocomplete="off">
+        </div>
         <div id="suggestions"></div>
     </div>
 
-    <div id="schedule"></div>
+    <div id="mainContent" style="display:none;">
+        <div class="city-info">
+            <h2 id="cityNameDisplay">---</h2>
+            <span id="tzLabel" class="tz-badge">WIB</span>
+        </div>
+        <div id="prayerTimes"></div>
+    </div>
 </div>
 
 <script>
-    // Added TZ property: 1 = WIB, 2 = WITA, 3 = WIT
-    const CITIES = [
-        { id: "1301", name: "DKI JAKARTA", tz: "WIB" },
-        { id: "1210", name: "KOTA BANDUNG", tz: "WIB" },
-        { id: "1524", name: "KOTA SURABAYA", tz: "WIB" },
-        { id: "3171", name: "KOTA MAKASSAR", tz: "WITA" },
-        { id: "1801", name: "KOTA DENPASAR", tz: "WITA" },
-        { id: "3318", name: "KOTA JAYAPURA", tz: "WIT" }
-    ];
-
     let currentSchedule = {};
+    let nextPrayerTime = null;
+    let debounceTimer;
 
-    async function update(id, name, tz) {
-        document.getElementById('suggestions').style.display = 'none';
+    const cityInput = document.getElementById('cityInput');
+    const suggestionsBox = document.getElementById('suggestions');
+
+    // 1. Live Clock & Countdown
+    function initClock() {
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('liveClock').innerText = now.toLocaleTimeString('id-ID', { hour12: false });
+            document.getElementById('liveDate').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+            if (nextPrayerTime) {
+                const diff = nextPrayerTime - now;
+                if (diff <= 0) {
+                    findNextPrayer(currentSchedule); // Recalculate if time reached
+                } else {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    document.getElementById('countdown').innerText = `-${h}j ${m}m ${s}d ke waktu sholat`;
+                }
+            }
+        }, 1000);
+    }
+
+    // 2. Automatic Timezone Detection
+    function getAutoTZ() {
+        const offset = new Date().getTimezoneOffset() / -60;
+        if (offset === 7) return "WIB";
+        if (offset === 8) return "WITA";
+        if (offset === 9) return "WIT";
+        return "GMT" + (offset >= 0 ? "+" : "") + offset;
+    }
+
+    // 3. Search Autocomplete (All Cities)
+    cityInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const query = cityInput.value.trim();
+        if (query.length < 2) { suggestionsBox.style.display = 'none'; return; }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`https://api.myquran.com/v2/sholat/kota/cari/${query}`);
+                const json = await res.json();
+                if (json.status && json.data.length > 0) {
+                    suggestionsBox.innerHTML = json.data.map(city => `
+                        <div class="suggestion-item" onclick="selectCity('${city.id}', '${city.lokasi}')">
+                            ${city.lokasi}
+                        </div>
+                    `).join('');
+                    suggestionsBox.style.display = 'block';
+                }
+            } catch (e) { console.error("Search error"); }
+        }, 300);
+    });
+
+    function selectCity(id, name) {
+        cityInput.value = name;
+        suggestionsBox.style.display = 'none';
+        fetchJadwal(id);
+    }
+
+    // 4. Fetch & Process Schedule
+    async function fetchJadwal(id) {
         try {
             const res = await fetch(`/.netlify/functions/index?city=${id}`);
             const data = await res.json();
 
             currentSchedule = data.jadwal;
-            document.getElementById('cityName').innerText = name;
-            document.getElementById('tzLabel').innerText = tz;
+            document.getElementById('cityNameDisplay').innerText = data.lokasi;
+            document.getElementById('tzLabel').innerText = getAutoTZ();
 
-            renderSchedule();
-            findNextPrayer();
-        } catch (e) { console.error("Update failed"); }
+            renderSchedule(data.jadwal);
+            findNextPrayer(data.jadwal);
+
+            document.getElementById('mainContent').style.display = 'block';
+        } catch (e) { alert("Gagal mengambil data."); }
     }
 
-    function renderSchedule() {
+    function renderSchedule(j) {
         const list = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
-        document.getElementById('schedule').innerHTML = list.map(p => `
+        document.getElementById('prayerTimes').innerHTML = list.map(p => `
             <div class="time-row" id="row-${p}">
-                <span class="label">${p.toUpperCase()}</span>
-                <span class="time">${currentSchedule[p]}</span>
+                <span class="label">${p}</span>
+                <span class="time">${j[p]}</span>
             </div>
         `).join('');
     }
 
-    function findNextPrayer() {
+    function findNextPrayer(j) {
         const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes();
         const list = ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'];
-
-        let next = null;
+        let found = null;
 
         for (let p of list) {
-            const [h, m] = currentSchedule[p].split(':');
-            const pTime = parseInt(h) * 60 + parseInt(m);
+            const [hh, mm] = j[p].split(':');
+            const pDate = new Date();
+            pDate.setHours(parseInt(hh), parseInt(mm), 0);
 
-            if (pTime > currentTime) {
-                next = { name: p, time: currentSchedule[p] };
+            if (pDate > now) {
+                found = { name: p, date: pDate };
                 break;
             }
         }
 
-        // If all prayers today passed, next is Subuh tomorrow
-        if (!next) next = { name: 'subuh', time: currentSchedule['subuh'] };
+        // Handle case after Isya (points to Subuh tomorrow)
+        if (!found) {
+            const [hh, mm] = j['subuh'].split(':');
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(parseInt(hh), parseInt(mm), 0);
+            found = { name: 'subuh', date: tomorrow };
+        }
 
-        document.getElementById('nextName').innerText = next.name.toUpperCase();
-        document.getElementById('nextTime').innerText = next.time;
-        document.getElementById('nextPrayerBox').style.display = 'block';
-
-        // Highlight in the list
-        document.querySelectorAll('.time-row').forEach(el => el.classList.remove('active-row'));
-        document.getElementById(`row-${next.name}`).classList.add('active-row');
+        nextPrayerTime = found.date;
+        document.querySelectorAll('.time-row').forEach(r => r.classList.remove('active-prayer'));
+        document.getElementById(`row-${found.name}`).classList.add('active-prayer');
     }
 
-    // Search logic
-    document.getElementById('cityInput').addEventListener('input', (e) => {
-        const val = e.target.value.toUpperCase();
-        const suggest = document.getElementById('suggestions');
-        if (val.length < 2) { suggest.style.display = 'none'; return; }
-        const matches = CITIES.filter(c => c.name.includes(val));
-        suggest.innerHTML = matches.map(c => `<div class="item" onclick="update('${c.id}','${c.name}','${c.tz}')">${c.name}</div>`).join('');
-        suggest.style.display = matches.length ? 'block' : 'none';
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) suggestionsBox.style.display = 'none';
     });
 
-    window.onload = () => update("1301", "DKI JAKARTA", "WIB");
+    window.onload = () => {
+        initClock();
+        fetchJadwal("1301"); // Initial load Jakarta
+    };
 </script>
 </body>
 </html>

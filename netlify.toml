@@ -2,8 +2,7 @@
   publish = "public"
   functions = "functions"
 
-# Optional: Makes your API look cleaner
 [[redirects]]
   from = "/api/jadwal"
-  to = "/.netlify/functions/jadwal"
+  to = "/.netlify/functions/index"
   status = 200
